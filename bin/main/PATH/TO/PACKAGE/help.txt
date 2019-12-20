@@ -1,0 +1,2 @@
+The files that are being tested (ie. that would be submitted) go in this folder.
+Replace the folder structure PATH/TO/PACKAGE with the correct package structure.

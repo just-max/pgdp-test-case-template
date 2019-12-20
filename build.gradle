@@ -1,0 +1,102 @@
+plugins {
+    id "java"
+}
+
+version=//"1.0" // TODO Change this to the correct version
+project.ext.mainPath = "src/"
+project.ext.resourcePath=//"src/PATH/TO/PACKAGE/" // TODO Change this to where resource files will be placed (eg. src/pgdp/iter)
+project.ext.gitProjectPath=	//"/home/USERNAME/git/pgdp1920wXXhXX-TUM_USERNAME/"
+project.ext.flatClassifier="intellij"
+project.ext.fullClassifier="eclipse"
+
+task buildTestFiles(type: Copy, group: "build", description: "Copies all test classes") {
+
+	from(sourceSets.test.java) {
+		exclude "**/BuildProperties.java"
+		into mainPath
+	}
+	
+	from(sourceSets.test.java) {
+		include "**/BuildProperties.java"
+		
+		Pattern propertyPattern = Pattern.compile(
+			"\\s*(?:public\\s*)?static\\s+final\\s+String\\s+([A-Za-z][A-Za-z0-9_]*)\\s*=\\s*\"(.*)\"\\s*;\\s*\$")
+		Pattern identifierPattern = Pattern.compile("^[^\"]*?([A-Za-z][A-Za-z0-9_]*)\\s*=.*")
+		Pattern valuePattern = Pattern.compile("^([^\"]*?\").*(\"\\s*;\\s*)\$")
+		
+		filter { String line ->
+			if (propertyPattern.asMatchPredicate().test(line)) {
+				Matcher identifierMatcher = identifierPattern.matcher(line)
+				identifierMatcher.find();
+				
+				if (project.hasProperty(identifierMatcher.group(1))) {
+					Matcher valueMatcher = valuePattern.matcher(line)
+					return valueMatcher.replaceAll("\$1${project.property(identifierMatcher.group(1))}\$2")
+			   	}
+			}
+			return line
+		}
+		
+		into mainPath
+	}
+	
+	from(sourceSets.test.resources.srcDirs) {
+	    into resourcePath
+	}
+
+	filter(ReplaceTokens, tokens: [BuildVersion: version,
+		BuildTime: DateFormat.getDateTimeInstance(DateFormat.FULL, DateFormat.FULL).format(new Date()),
+		CopyrightYear: Integer.toString(new Date().getYear() + 1900)])
+	    
+    into "$projectDir/dest/build-files"
+}
+
+task buildTestZip(type: Zip, group: "build tests", description: "Creates a zip with all test classes.") {
+	archiveBaseName = "w08h02-tests"
+	archiveClassifier = fullClassifier
+	
+	rename "gitignore", ".gitignore"
+	
+	eachFile {
+	    if (it.name.equals(".gitignore"))
+	        it.setRelativePath new RelativePath(true, mainPath + it.name)
+        if (it.name.equals("readme.txt") || it.name.equals("changes.txt"))
+	        it.setRelativePath new RelativePath(true, it.name)
+	}
+	
+	filter(ReplaceTokens, tokens: [BuildFlavour: fullClassifier])
+	
+	from buildTestFiles
+}
+
+task buildFlatTestZip(type: Zip, group: "build tests", description: "Creates a zip with all test classes.") {
+	archiveBaseName = "w08h02-tests"
+	archiveClassifier = flatClassifier
+	
+	rename "gitignore", ".gitignore"
+	
+	eachFile {
+		it.setRelativePath new RelativePath(true, it.name)
+    }
+    
+    includeEmptyDirs = false
+    
+	filter(ReplaceTokens, tokens: [BuildFlavour: flatClassifier])
+	
+	from buildTestFiles
+}
+
+task generateSubmission(type: Copy, group: "build", description: "Generates the files that will be pushed to artemis.") {
+	from sourceSets.main.allSource
+	into "${gitProjectPath}${mainPath}"
+}
+
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // https://mvnrepository.com/artifact/org.junit.jupiter/junit-jupiter
+	implementation group: 'org.junit.jupiter', name: 'junit-jupiter', version: '5.5.2'
+}

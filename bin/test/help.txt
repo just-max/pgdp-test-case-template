@@ -1,0 +1,3 @@
+Any resource the test code needs go here.
+For example, files with sample output can be placed here and then compared to the tested code's output.
+This directory is referenced by BuildProperties.resourcePath and files can retrieved with BuildProperties.getResource(name).
